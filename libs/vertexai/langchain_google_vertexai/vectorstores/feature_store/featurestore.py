@@ -93,8 +93,8 @@ class VertexFSVectorStore(BaseBigQueryVectorStore):
         self._search_client = self._get_search_client()
         self._feature_view = self._get_feature_view()
         logger.info(
-            "VertexFSVectorStore initialized with Feature Store  \n"
-            f"{self.online_store_type} Vector Search."
+            "VertexFSVectorStore initialized with Feature Store\n"
+            f"online store type: {self.online_store_type}\n"
             "Optional batch serving available via .to_big_query_vector_store() method."
         )
 

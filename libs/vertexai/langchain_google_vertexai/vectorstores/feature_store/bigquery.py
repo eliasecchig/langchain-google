@@ -4,24 +4,11 @@ from typing import Any, Dict, List, Optional, Type, Union, Literal
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
-import proto  # type: ignore[import-untyped]
-import vertexai  # type: ignore[import-untyped]
 from google.api_core.exceptions import (
     ClientError,
 )
 from google.cloud import bigquery
 from google.cloud.aiplatform import base, telemetry
-
-from vertexai.resources.preview import (  # type: ignore[import-untyped]
-    AlgorithmConfig,
-    DistanceMeasureType,
-    FeatureOnlineStore,
-    FeatureView,
-    FeatureViewBigQuerySource,
-)
-from vertexai.resources.preview.feature_store import (  # type: ignore[import-untyped]
-    utils,
-)
 
 from langchain_google_vertexai.vectorstores.feature_store._base import \
     BaseBigQueryVectorStore
