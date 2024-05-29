@@ -31,9 +31,11 @@ from langchain_google_vertexai.vectorstores import (
     VectorSearchVectorStoreDatastore,
     VectorSearchVectorStoreGCS,
 )
-from langchain_google_vertexai.vectorstores.feature_store.feature_store import (
-    FeatureStore,
+
+from langchain_google_vertexai.vectorstores.feature_store.bq_vectorstore import (
+    BigQueryVectorStore,
 )
+
 from langchain_google_vertexai.vision_models import (
     VertexAIImageCaptioning,
     VertexAIImageCaptioningChat,
@@ -43,10 +45,10 @@ from langchain_google_vertexai.vision_models import (
 )
 
 __all__ = [
+    "BigQueryVectorStore",
     "ChatVertexAI",
     "create_structured_runnable",
     "DataStoreDocumentStorage",
-    "FeatureStore",
     "FunctionCallingConfig",
     "FunctionDeclaration",
     "GCSDocumentStorage",

@@ -7,7 +7,7 @@ import random
 
 import pytest
 
-from langchain_google_vertexai.vectorstores.feature_store.executors import (
+from langchain_google_vertexai.vectorstores.feature_store.bq_vectorstore import (
     FeatureOnlineStoreExecutor,
 )
 from langchain_google_vertexai.vectorstores.feature_store.feature_store import (

@@ -1,6 +1,10 @@
-"""Vector Store using Vertex AI Feature Store"""
-
 from __future__ import annotations
+from datetime import datetime, timedelta
+from threading import Lock, Thread
+import proto  # type: ignore[import-untyped]
+import vertexai  # type: ignore[import-untyped]
+
+from google.cloud.aiplatform import base, telemetry
 
 import asyncio
 import uuid
@@ -16,71 +20,58 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStore
 from pydantic import BaseModel, validate_call
 
-from langchain_google_vertexai.vectorstores.feature_store.executors import (
-    BigQueryExecutor,
-    BruteForceExecutor,
-    FeatureOnlineStoreExecutor,
-)
 from langchain_google_vertexai.vectorstores.feature_store.utils import (
-    EnvConfig,
     validate_column_in_bq_schema,
 )
+
+from vertexai.resources.preview import (  # type: ignore[import-untyped]
+    AlgorithmConfig,
+    DistanceMeasureType,
+    FeatureOnlineStore,
+    FeatureView,
+    FeatureViewBigQuerySource,
+)
+from vertexai.resources.preview.feature_store import (  # type: ignore[import-untyped]
+    utils,
+)
+
+
+_vector_table_lock = Lock()  # process-wide BigQueryVectorSearch table lock
+
+logger = base.Logger(__name__)
+# Constants for index creation
+MIN_INDEX_ROWS = 5
+INDEX_CHECK_INTERVAL = timedelta(seconds=60)
+USER_AGENT_PREFIX = "FeatureStore"
+
 
 logger = base.Logger(__name__)
 
 
-class FeatureStore(VectorStore, BaseModel):
-    """Google Cloud Feature Store vector store.
-    The FeatureStore aims to facilitate similarity search using different
-        methodologies on Google Cloud including Big Query, Feature Store and a
-        local bruteforce search engine.
-    Big Query is the data source of truth and also the default search
-        methodology (or executor).
-    When lower latency is required, it is possible to move to the feature store
-        executor with one line: my_fs.set_executor({"type": "feature_online_store"}).
-    The data can be synced from BQ to FS using my_fs.sync().
-    Optionally a cron schedule can be passed for automatic sync of BQ data
-    to fs: my_fs.set_executor({
-        "type": "feature_online_store", "cron_schedule": "TZ=Europe/Rome 00 00 01 5 *"
-        })
-
-    Attributes:
-        embedding (Any): An embedding model instance for text to vector transformations.
-        project_id (str): Your Google Cloud Project ID.
-        dataset_name (str): Name of the dataset within BigQuery.
-        table_name (str): Name of the table within the dataset.
-        location (str): Location of your BigQuery dataset (e.g., "europe-west2").
-        executor (Union[BigQueryExecutor, BruteForceExecutor,
-            FeatureOnlineStoreExecutor]): The executor to use for search
-            (defaults to BigQueryExecutor).
-        content_field (str): The field name in the Feature Store that stores the
-            text content.
-        text_embedding_field (str): The field name in the Feature Store that stores
-            the text embeddings.
-        doc_id_field (str): The field name in the Feature Store that stores the
-            document IDs.
-        credentials (Optional[Any]): Optional credentials for Google Cloud
-            authentication.
-
-    To use, you need the following packages installed:
-        google-cloud-bigquery
-    """
-
+class BaseBigQueryStorageVectorStore(VectorStore, BaseModel):
     embedding: Any
     project_id: str
     dataset_name: str
     table_name: str
     location: str
-    executor: Union[
-        BigQueryExecutor, BruteForceExecutor, FeatureOnlineStoreExecutor
-    ] = BigQueryExecutor()
     content_field: str = "content"
     text_embedding_field: str = "text_embedding"
     doc_id_field: str = "doc_id"
     credentials: Optional[Any] = None
     _extra_fields: Union[Dict[str, str], None] = None
-    _env_config: Optional[EnvConfig] = None
     _table_schema: Any = None
+
+    def sync(self):
+        raise NotImplementedError()
+
+    def similarity_search_by_vectors_with_scores_and_embeddings(
+        self,
+        embeddings: List[List[float]],
+        filter: Optional[Dict[str, Any]] = None,
+        k: int = 5,
+        batch_size: Union[int, None] = None,
+    ) -> list[list[list[Any]]]:
+        raise NotImplementedError()
 
     def model_post_init(self, __context):
         """Constructor for FeatureStore."""
@@ -115,21 +106,6 @@ class FeatureStore(VectorStore, BaseModel):
             f"https://console.cloud.google.com/bigquery?project={self.project_id}"
             f"&ws=!1m5!1m4!4m3!1s{self.project_id}!2s{self.dataset_name}!3s{self.table_name}"
         )
-        self._env_config = EnvConfig(
-            bq_client=self._bq_client,
-            project_id=self.project_id,
-            dataset_name=self.dataset_name,
-            table_name=self.table_name,
-            location=self.location,
-            extra_fields=self._extra_fields,
-            content_field=self.content_field,
-            table_schema=self._table_schema,
-            text_embedding_field=self.text_embedding_field,
-            doc_id_field=self.doc_id_field,
-            full_table_id=self._full_table_id,
-            embedding_dimension=self._embedding_dimension,
-        )
-        self.executor.set_env_config(env_config=self._env_config)
 
     @property
     def embeddings(self) -> Optional[Embeddings]:
@@ -192,9 +168,9 @@ class FeatureStore(VectorStore, BaseModel):
                             )
                         extra_fields[column.name] = column.field_type
                 self._extra_fields = extra_fields
-                if self._env_config:
-                    self._env_config.extra_fields = extra_fields
-                    self._env_config.table_schema = self._table_schema
+                # if self:
+                #     self.extra_fields = extra_fields
+                #     self.table_schema = self._table_schema
             else:
                 for field, type in self._extra_fields.items():
                     validate_column_in_bq_schema(
@@ -212,9 +188,6 @@ class FeatureStore(VectorStore, BaseModel):
         table_ref = bigquery.TableReference.from_string(self._full_table_id)
         self._bq_client.create_table(table_ref, exists_ok=True)
         return table_ref
-
-    def sync(self):
-        self.executor.sync()
 
     def add_texts(  # type: ignore[override]
         self,
@@ -300,7 +273,7 @@ class FeatureStore(VectorStore, BaseModel):
         Returns:
             List of ids from adding the texts into the vectorstore.
         """
-        return self.executor.get_documents(ids=ids, filter=filter, **kwargs)
+        raise NotImplementedError
 
     def delete(self, ids: Optional[List[str]] = None, **kwargs: Any) -> Optional[bool]:
         """Delete documents by record IDs
@@ -373,7 +346,7 @@ class FeatureStore(VectorStore, BaseModel):
         Returns:
             A list of `k` documents for each embedding in `embeddings`
         """
-        results = self.executor.similarity_search_by_vectors_with_scores_and_embeddings(
+        results = self.similarity_search_by_vectors_with_scores_and_embeddings(
             embeddings=embeddings, k=k, filter=filter, **kwargs
         )
 
@@ -527,41 +500,4 @@ class FeatureStore(VectorStore, BaseModel):
         metadatas: Optional[List[dict]] = None,
         **kwargs: Any,
     ) -> "FeatureStore":
-        """Return VectorStore initialized from input texts
-
-        Args:
-            texts: List of strings to add to the vectorstore.
-            embedding: An embedding model instance for text to vector transformations.
-            metadatas: Optional list of metadata records associated with the texts.
-                (ie [{"url": "www.myurl1.com", "title": "title1"},
-                {"url": "www.myurl2.com", "title": "title2"}])
-        Returns:
-            List of ids from adding the texts into the vectorstore.
-        """
-        vs_obj = FeatureStore(embedding=embedding, **kwargs)
-        vs_obj.add_texts(texts, metadatas)
-        return vs_obj
-
-    @validate_call
-    def set_executor(
-        self,
-        executor: Union[
-            BigQueryExecutor, FeatureOnlineStoreExecutor, BruteForceExecutor
-        ],
-    ):
-        """Set a different executor to run similarity search.
-
-        Args:
-            executor: Any of [BigQueryExecutor, FeatureOnlineStoreExecutor,
-                BruteForceExecutor]
-                example usage:
-                    1. my_fs.set_executor({"type": "big_query"})
-                    2. my_fs.set_executor({"type": "feature_online_store",
-                        "cron_schedule": "TZ=Europe/Rome 00 00 01 5 *"})
-                    3. my_fs.set_executor({"type": "brute_force"})
-        Returns:
-            None
-        """
-        self.executor = executor
-        if self._env_config is not None:
-            self.executor.set_env_config(env_config=self._env_config)
+        raise NotImplementedError()
