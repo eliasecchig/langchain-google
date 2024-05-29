@@ -1,8 +1,6 @@
 from __future__ import annotations
-from datetime import datetime, timedelta
-from threading import Lock, Thread
-import proto  # type: ignore[import-untyped]
-import vertexai  # type: ignore[import-untyped]
+from datetime import timedelta
+from threading import Lock
 
 from google.cloud.aiplatform import base, telemetry
 
@@ -10,6 +8,7 @@ import asyncio
 import uuid
 from functools import partial
 from importlib.util import find_spec
+import numpy as np
 from typing import Any, Dict, List, Optional, Type, Union
 
 from google.cloud import bigquery
@@ -20,19 +19,10 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStore
 from pydantic import BaseModel, validate_call
 
+from langchain_community.vectorstores.utils import maximal_marginal_relevance
+
 from langchain_google_vertexai.vectorstores.feature_store.utils import (
     validate_column_in_bq_schema,
-)
-
-from vertexai.resources.preview import (  # type: ignore[import-untyped]
-    AlgorithmConfig,
-    DistanceMeasureType,
-    FeatureOnlineStore,
-    FeatureView,
-    FeatureViewBigQuerySource,
-)
-from vertexai.resources.preview.feature_store import (  # type: ignore[import-untyped]
-    utils,
 )
 
 
@@ -84,6 +74,7 @@ class BaseBigQueryVectorStore(VectorStore, BaseModel):
             List of ids from adding the texts into the vectorstore.
         """
         raise NotImplementedError
+
     def _similarity_search_by_vectors_with_scores_and_embeddings(
         self,
         embeddings: List[List[float]],
@@ -489,6 +480,83 @@ class BaseBigQueryVectorStore(VectorStore, BaseModel):
                 with_embeddings=with_embeddings,
                 **kwargs,
             )
+    
+    def max_marginal_relevance_search(
+        self,
+        query: str,
+        k: int = 5,
+        fetch_k: int = 25,
+        lambda_mult: float = 0.5,
+        **kwargs,
+    ) -> List[Document]:
+        """Return docs selected using the maximal marginal relevance.
+
+        Maximal marginal relevance optimizes for similarity to query AND diversity
+        among selected documents.
+
+        Args:
+            **kwargs:
+            query: search query text.
+            filter: Filter on metadata properties, e.g.
+                            {
+                                "str_property": "foo",
+                                "int_property": 123
+                            }
+            k: Number of Documents to return. Defaults to 5.
+            fetch_k: Number of Documents to fetch to pass to MMR algorithm.
+            lambda_mult: Number between 0 and 1 that determines the degree
+                        of diversity among the results with 0 corresponding
+                        to maximum diversity and 1 to minimum diversity.
+                        Defaults to 0.5.
+        Returns:
+            List of Documents selected by maximal marginal relevance.
+        """
+        embedding = self.embedding.embed_query(query)
+        return self.max_marginal_relevance_search_by_vector(
+            embedding=embedding, k=k, fetch_k=fetch_k, lambda_mult=lambda_mult, **kwargs
+        )
+
+    def max_marginal_relevance_search_by_vector(
+        self,
+        embedding: List[float],
+        k: int = 5,
+        fetch_k: int = 25,
+        lambda_mult: float = 0.5,
+        **kwargs,
+    ) -> List[Document]:
+        """Return docs selected using the maximal marginal relevance.
+
+        Maximal marginal relevance optimizes for similarity to query AND diversity
+        among selected documents.
+
+        Args:
+            embedding: Embedding to look up documents similar to.
+            filter: Filter on metadata properties, e.g.
+                            {
+                                "str_property": "foo",
+                                "int_property": 123
+                            }
+            k: Number of Documents to return. Defaults to 5.
+            fetch_k: Number of Documents to fetch to pass to MMR algorithm.
+            lambda_mult: Number between 0 and 1 that determines the degree
+                        of diversity among the results with 0 corresponding
+                        to maximum diversity and 1 to minimum diversity.
+                        Defaults to 0.5.
+        Returns:
+            List of Documents selected by maximal marginal relevance.
+        """
+        doc_tuples = self.similarity_search_by_vectors(
+            embeddings=[embedding],
+            k=fetch_k,
+            with_embeddings=True,
+            with_scores=True,
+            **kwargs,
+        )[0]
+        doc_embeddings = [d[2] for d in doc_tuples]  # type: ignore[index]
+        mmr_doc_indexes = maximal_marginal_relevance(
+            np.array(embedding), doc_embeddings, lambda_mult=lambda_mult, k=k
+        )
+        return [doc_tuples[i][0] for i in mmr_doc_indexes]  # type: ignore[index]
 
     @classmethod
     def from_texts(
