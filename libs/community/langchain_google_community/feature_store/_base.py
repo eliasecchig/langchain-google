@@ -18,25 +18,9 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStore
 from pydantic import BaseModel, validate_call
-<<<<<<< HEAD:libs/vertexai/langchain_google_vertexai/vectorstores/feature_store/_base.py
-
 from langchain_community.vectorstores.utils import maximal_marginal_relevance
 
-from langchain_google_vertexai.vectorstores.feature_store.utils import (
-    validate_column_in_bq_schema,
-=======
 from langchain_google_community.feature_store.utils import validate_column_in_bq_schema
-from vertexai.resources.preview import (  # type: ignore[import-untyped]
-    AlgorithmConfig,
-    DistanceMeasureType,
-    FeatureOnlineStore,
-    FeatureView,
-    FeatureViewBigQuerySource,
-)
-from vertexai.resources.preview.feature_store import (  # type: ignore[import-untyped]
-    utils,
->>>>>>> fd277c9b0658bdb164fdbdc2a9eb41c364a3416c:libs/community/langchain_google_community/feature_store/_base.py
-)
 
 
 _vector_table_lock = Lock()  # process-wide BigQueryVectorSearch table lock
