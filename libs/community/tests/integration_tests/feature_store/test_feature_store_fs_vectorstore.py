@@ -7,13 +7,7 @@ import random
 
 import pytest
 
-from langchain_google_vertexai.vectorstores.feature_store.bq_vectorstore import (
-    FeatureOnlineStoreExecutor,
-)
-from langchain_google_vertexai.vectorstores.feature_store.feature_store import (
-    FeatureStore,
-)
-
+from langchain_google_vertexai import VertexFSVectorStore
 # Feature Online store is static to avoid cold start setup time during testing
 TEST_DATASET = "langchain_test_dataset"
 TEST_TABLE_NAME = f"langchain_test_table{str(random.randint(1,100000))}"
@@ -22,7 +16,7 @@ TEST_VIEW_NAME = f"test{str(random.randint(1,100000))}"
 
 
 @pytest.fixture(scope="class")
-def store_fs_executor(request: pytest.FixtureRequest) -> FeatureStore:
+def store_fs_executor(request: pytest.FixtureRequest) -> VertexFSVectorStore:
     """BigQueryVectorStore tests context.
 
     In order to run this test, you define PROJECT_ID environment variable
@@ -39,41 +33,38 @@ def store_fs_executor(request: pytest.FixtureRequest) -> FeatureStore:
         model_name="textembedding-gecko@latest",
         project=os.environ.get("PROJECT_ID", None),
     )
-    TestFeatureStore_fs_executor.store_fs_executor = FeatureStore(
+    TestVertexFSVectorStore_fs_executor.store_fs_executor = VertexFSVectorStore(
         project_id=os.environ.get("PROJECT_ID", None),  # type: ignore[arg-type]
         embedding=embedding_model,
         location="us-central1",
         dataset_name=TEST_DATASET,
         table_name=TEST_TABLE_NAME,
-        executor=FeatureOnlineStoreExecutor(
-            online_store_name=TEST_FOS_NAME,
-            view_name=TEST_VIEW_NAME,
-        ),
     )
-    TestFeatureStore_fs_executor.ids = (
-        TestFeatureStore_fs_executor.store_fs_executor.add_texts(
-            TestFeatureStore_fs_executor.texts,
-            TestFeatureStore_fs_executor.metadatas,
+    TestVertexFSVectorStore_fs_executor.ids = (
+        TestVertexFSVectorStore_fs_executor.store_fs_executor.add_texts(
+            TestVertexFSVectorStore_fs_executor.texts,
+            TestVertexFSVectorStore_fs_executor.metadatas,
         )
     )
 
     def teardown() -> None:
         bigquery.Client(location="us-central1").delete_dataset(
-            TestFeatureStore_fs_executor.store_fs_executor.dataset_name,
+            TestVertexFSVectorStore_fs_executor.store_fs_executor.dataset_name,
             delete_contents=True,
             not_found_ok=True,
         )
-        TestFeatureStore_fs_executor.store_fs_executor.executor._feature_view.delete()
+        TestVertexFSVectorStore_fs_executor.store_fs_executor.executor\
+            ._feature_view.delete()
 
     request.addfinalizer(teardown)
-    return TestFeatureStore_fs_executor.store_fs_executor
+    return TestVertexFSVectorStore_fs_executor.store_fs_executor
 
 
-class TestFeatureStore_fs_executor:
+class TestVertexFSVectorStore_fs_executor:
     """BigQueryVectorStore tests class."""
 
     ids: list = []
-    store_fs_executor: FeatureStore
+    store_fs_executor: VertexFSVectorStore
     texts = ["apple", "ice cream", "Saturn", "candy", "banana"]
     metadatas = [
         {"kind": "fruit", "chunk": 0},
@@ -84,7 +75,7 @@ class TestFeatureStore_fs_executor:
     ]
 
     @pytest.mark.extended
-    def test_semantic_search(self, store_fs_executor: FeatureStore) -> None:
+    def test_semantic_search(self, store_fs_executor: VertexFSVectorStore) -> None:
         """Test on semantic similarity."""
         docs = store_fs_executor.similarity_search("fruit", k=4)
         kinds = [d.metadata["kind"] for d in docs]
@@ -96,7 +87,7 @@ class TestFeatureStore_fs_executor:
 
     @pytest.mark.extended
     def test_semantic_search_filter_fruits(
-        self, store_fs_executor: FeatureStore
+        self, store_fs_executor: VertexFSVectorStore
     ) -> None:
         """Test on semantic similarity with metadata filter."""
         docs = store_fs_executor.similarity_search("apple", filter={"kind": "fruit"})
@@ -107,12 +98,12 @@ class TestFeatureStore_fs_executor:
 
     @pytest.mark.extended
     def test_add_texts_with_embeddings_with_error(
-        self, store_fs_executor: FeatureStore
+        self, store_fs_executor: VertexFSVectorStore
     ) -> None:
         new_texts = ["chocolate", "Mars"]
         new_embs = store_fs_executor.embedding.embed_documents(new_texts)
         new_metadatas = [{"kind": "treat"}, {"kind": "planet"}]
-        new_executor = FeatureStore(
+        new_executor = VertexFSVectorStore(
             project_id=os.environ.get("PROJECT_ID", None),  # type: ignore[arg-type]
             embedding=store_fs_executor.embedding,
             location="us-central1",
@@ -130,21 +121,21 @@ class TestFeatureStore_fs_executor:
             )
 
     @pytest.mark.extended
-    def test_get_doc_by_ids(self, store_fs_executor: FeatureStore) -> None:
-        ids = TestFeatureStore_fs_executor.ids[0:2]
+    def test_get_doc_by_ids(self, store_fs_executor: VertexFSVectorStore) -> None:
+        ids = TestVertexFSVectorStore_fs_executor.ids[0:2]
 
         retrieved_docs = store_fs_executor.get_documents(ids=ids)
         assert len(retrieved_docs) == 2
 
     @pytest.mark.extended
-    def test_get_doc_by_filter(self, store_fs_executor: FeatureStore) -> None:
+    def test_get_doc_by_filter(self, store_fs_executor: VertexFSVectorStore) -> None:
         """Test on document retrieval with metadata filter."""
         with pytest.raises(ValueError):
             _ = store_fs_executor.get_documents(filter={"kind": "fruit"})
 
     @pytest.mark.extended
     def test_batch_search_with_embeddings(
-        self, store_fs_executor: FeatureStore
+        self, store_fs_executor: VertexFSVectorStore
     ) -> None:
         queries = ["red fruit", "planet with rings"]
         embeddings = store_fs_executor.embedding.embed_documents(queries)

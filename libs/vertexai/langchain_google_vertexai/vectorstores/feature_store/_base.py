@@ -48,7 +48,7 @@ USER_AGENT_PREFIX = "FeatureStore"
 logger = base.Logger(__name__)
 
 
-class BaseBigQueryStorageVectorStore(VectorStore, BaseModel):
+class BaseBigQueryVectorStore(VectorStore, BaseModel):
     embedding: Any
     project_id: str
     dataset_name: str
@@ -58,13 +58,33 @@ class BaseBigQueryStorageVectorStore(VectorStore, BaseModel):
     text_embedding_field: str = "text_embedding"
     doc_id_field: str = "doc_id"
     credentials: Optional[Any] = None
+    embedding_dimension: Optional[int] = None
     _extra_fields: Union[Dict[str, str], None] = None
     _table_schema: Any = None
 
     def sync(self):
         raise NotImplementedError()
 
-    def similarity_search_by_vectors_with_scores_and_embeddings(
+    def get_documents(
+        self,
+        ids: Optional[List[str]] = None,
+        filter: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> List[Document]:
+        """Search documents by their ids or metadata values.
+
+        Args:
+            ids: List of ids of documents to retrieve from the vectorstore.
+            filter: Filter on metadata properties, e.g.
+                            {
+                                "str_property": "foo",
+                                "int_property": 123
+                            }
+        Returns:
+            List of ids from adding the texts into the vectorstore.
+        """
+        raise NotImplementedError
+    def _similarity_search_by_vectors_with_scores_and_embeddings(
         self,
         embeddings: List[List[float]],
         filter: Optional[Dict[str, Any]] = None,
@@ -93,7 +113,8 @@ class BaseBigQueryStorageVectorStore(VectorStore, BaseModel):
             location=self.location,
             credentials=self.credentials,
         )
-        self._embedding_dimension = len(self.embedding.embed_query("test"))
+        if self.embedding_dimension is None:
+            self.embedding_dimension = len(self.embedding.embed_query("test"))
         self._full_table_id = (
             f"{self.project_id}." f"{self.dataset_name}." f"{self.table_name}"
         )
@@ -120,11 +141,11 @@ class BaseBigQueryStorageVectorStore(VectorStore, BaseModel):
 
         try:
             table = self._bq_client.get_table(
-                self.full_table_id
+                self._full_table_id
             )  # Attempt to retrieve the table information
         except NotFound:
             logger.debug(
-                f"Couldn't find table {self.full_table_id}. "
+                f"Couldn't find table {self._full_table_id}. "
                 f"Table will be created once documents are added"
             )
             return
@@ -168,9 +189,6 @@ class BaseBigQueryStorageVectorStore(VectorStore, BaseModel):
                             )
                         extra_fields[column.name] = column.field_type
                 self._extra_fields = extra_fields
-                # if self:
-                #     self.extra_fields = extra_fields
-                #     self.table_schema = self._table_schema
             else:
                 for field, type in self._extra_fields.items():
                     validate_column_in_bq_schema(
@@ -179,7 +197,7 @@ class BaseBigQueryStorageVectorStore(VectorStore, BaseModel):
                         expected_types=[type],
                         expected_modes=["NULLABLE", "REQUIRED"],
                     )
-            logger.debug(f"Table {self.full_table_id} validated")
+            logger.debug(f"Table {self._full_table_id} validated")
         return table_ref
 
     def _initialize_bq_table(self) -> Any:
@@ -245,7 +263,7 @@ class BaseBigQueryStorageVectorStore(VectorStore, BaseModel):
             values_dict.append(record)  # type: ignore[arg-type]
 
         table = self._bq_client.get_table(
-            self.full_table_id
+            self._full_table_id
         )  # Attempt to retrieve the table information
         df = self._pd.DataFrame(values_dict)
         job = self._bq_client.load_table_from_dataframe(df, table)
@@ -254,26 +272,6 @@ class BaseBigQueryStorageVectorStore(VectorStore, BaseModel):
         logger.debug(f"stored {len(ids)} records in BQ")
         self.sync()
         return ids
-
-    def get_documents(
-        self,
-        ids: Optional[List[str]] = None,
-        filter: Optional[Dict[str, Any]] = None,
-        **kwargs,
-    ) -> List[Document]:
-        """Search documents by their ids or metadata values.
-
-        Args:
-            ids: List of ids of documents to retrieve from the vectorstore.
-            filter: Filter on metadata properties, e.g.
-                            {
-                                "str_property": "foo",
-                                "int_property": 123
-                            }
-        Returns:
-            List of ids from adding the texts into the vectorstore.
-        """
-        raise NotImplementedError
 
     def delete(self, ids: Optional[List[str]] = None, **kwargs: Any) -> Optional[bool]:
         """Delete documents by record IDs
@@ -294,7 +292,7 @@ class BaseBigQueryStorageVectorStore(VectorStore, BaseModel):
         )
         self._bq_client.query(
             f"""
-                    DELETE FROM `{self.full_table_id}` WHERE {self.doc_id_field}
+                    DELETE FROM `{self._full_table_id}` WHERE {self.doc_id_field}
                     IN UNNEST(@ids)
                     """,
             job_config=job_config,
@@ -346,7 +344,7 @@ class BaseBigQueryStorageVectorStore(VectorStore, BaseModel):
         Returns:
             A list of `k` documents for each embedding in `embeddings`
         """
-        results = self.similarity_search_by_vectors_with_scores_and_embeddings(
+        results = self._similarity_search_by_vectors_with_scores_and_embeddings(
             embeddings=embeddings, k=k, filter=filter, **kwargs
         )
 

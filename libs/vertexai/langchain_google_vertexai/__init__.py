@@ -25,15 +25,13 @@ from langchain_google_vertexai.gemma import (
 from langchain_google_vertexai.llms import VertexAI
 from langchain_google_vertexai.model_garden import VertexAIModelGarden
 from langchain_google_vertexai.vectorstores import (
+    BigQueryVectorStore,
     DataStoreDocumentStorage,
     GCSDocumentStorage,
     VectorSearchVectorStore,
     VectorSearchVectorStoreDatastore,
     VectorSearchVectorStoreGCS,
-)
-
-from langchain_google_vertexai.vectorstores.feature_store.bq_vectorstore import (
-    BigQueryVectorStore,
+    VertexFSVectorStore,
 )
 
 from langchain_google_vertexai.vision_models import (
@@ -68,6 +66,7 @@ __all__ = [
     "VectorSearchVectorStoreDatastore",
     "VectorSearchVectorStoreGCS",
     "VertexAI",
+    "VertexFSVectorStore",
     "VertexAIEmbeddings",
     "VertexAIImageCaptioning",
     "VertexAIImageCaptioningChat",

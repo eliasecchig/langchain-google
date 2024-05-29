@@ -7,7 +7,7 @@ import uuid
 
 import pytest
 
-from langchain_google_vertexai.vectorstores.feature_store.bq_vectorstore import (
+from langchain_google_vertexai.vectorstores.feature_store.bigquery import (
     BigQueryExecutor,
 )
 from langchain_google_vertexai.vectorstores.feature_store.feature_store import (

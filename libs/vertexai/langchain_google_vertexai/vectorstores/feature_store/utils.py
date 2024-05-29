@@ -52,18 +52,3 @@ def cast_proto_type(column: str, value: Any):
     elif column.startswith("bool"):
         return bool(value)
     return value
-
-
-class EnvConfig(BaseModel):
-    bq_client: Optional[Any] = None
-    project_id: Optional[str] = None
-    dataset_name: Optional[str] = None
-    table_name: Optional[str] = None
-    location: Optional[str] = None
-    extra_fields: Union[Dict[str, str], None] = None
-    table_schema: Optional[dict] = None
-    content_field: Optional[str] = "content"
-    text_embedding_field: Optional[str] = "text_embedding"
-    doc_id_field: Optional[str] = "doc_id"
-    embedding_dimension: Optional[int] = None
-    full_table_id: Optional[str] = None

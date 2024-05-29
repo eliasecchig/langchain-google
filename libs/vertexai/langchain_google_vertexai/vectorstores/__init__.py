@@ -2,7 +2,7 @@ from langchain_google_vertexai.vectorstores.document_storage import (
     DataStoreDocumentStorage,
     GCSDocumentStorage,
 )
-from langchain_google_vertexai.vectorstores.feature_store.bq_vectorstore import (
+from langchain_google_vertexai.vectorstores.feature_store.bigquery import (
     BigQueryVectorStore,
 )
 from langchain_google_vertexai.vectorstores.vectorstores import (
@@ -11,11 +11,19 @@ from langchain_google_vertexai.vectorstores.vectorstores import (
     VectorSearchVectorStoreGCS,
 )
 
+from langchain_google_vertexai.vectorstores.feature_store.bigquery import (
+    BigQueryVectorStore,
+)
+from langchain_google_vertexai.vectorstores.feature_store.featurestore import (
+    VertexFSVectorStore,
+)
+
 __all__ = [
-    "BiqQueryVectorStore",
+    "BigQueryVectorStore",
     "VectorSearchVectorStore",
     "VectorSearchVectorStoreDatastore",
     "VectorSearchVectorStoreGCS",
     "DataStoreDocumentStorage",
     "GCSDocumentStorage",
+    "VertexFSVectorStore"
 ]
