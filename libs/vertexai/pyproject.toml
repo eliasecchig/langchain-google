@@ -17,10 +17,6 @@ google-cloud-aiplatform = "^1.47.0"
 google-cloud-storage = "^2.14.0"
 # optional dependencies
 anthropic = { extras = ["vertexai"], version = ">=0.23.0,<1", optional = true }
-pandas = { version = ">= 1.0.0", optional = true }
-google-cloud-bigquery-storage = { version = ">=2.6.0,<3",  optional = true }
-pyarrow = { version = ">= 6.0.1", optional = true }
-db-dtypes = { version = "^1.2.0", optional = true }
 
 [tool.poetry.group.test]
 optional = true
@@ -71,7 +67,6 @@ types-requests = "^2.31.0"
 
 [tool.poetry.extras]
 anthropic = ["anthropic"]
-featurestore = ["google-cloud-bigquery-storage", "pandas", "pyarrow","db-dtypes"]
 
 [tool.ruff]
 select = [

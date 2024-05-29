@@ -22,10 +22,10 @@ from vertexai.resources.preview.feature_store import (  # type: ignore[import-un
     utils,
 )
 
-from langchain_google_vertexai._utils import get_client_info, get_user_agent
-from langchain_google_vertexai.vectorstores.feature_store._base import \
-    BaseBigQueryVectorStore
-from langchain_google_vertexai.vectorstores.feature_store.utils import (
+from langchain_google_community._utils import get_client_info, get_user_agent
+from langchain_google_community.feature_store._base import BaseBigQueryVectorStore
+
+from langchain_google_community.feature_store.utils import (
     cast_proto_type,
     doc_match_filter,
 )
@@ -130,7 +130,7 @@ class VertexFSVectorStore(BaseBigQueryVectorStore):
             client_options={"api_endpoint": endpoint}
         )
 
-    def _wait_until_dummy_query_success(self, timeout_seconds: int = 1200):
+    def _wait_until_dummy_query_success(self, timeout_seconds: int = 6000):
         """
         Waits until a dummy query succeeds, indicating the system is ready.
         """
@@ -513,11 +513,11 @@ class VertexFSVectorStore(BaseBigQueryVectorStore):
         vs_obj.add_texts(texts, metadatas)
         return vs_obj
 
-    def to_big_query_vector_store(
+    def get_big_query_vector_store(
             self,
             **kwargs
     ) -> BaseBigQueryVectorStore:
-        from langchain_google_vertexai.vectorstores.feature_store.bigquery import \
+        from langchain_google_community.feature_store.bigquery import \
             BigQueryVectorStore
 
         base_params = self.dict(include=BaseBigQueryVectorStore.__fields__.keys())

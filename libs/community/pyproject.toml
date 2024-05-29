@@ -32,6 +32,10 @@ google-cloud-translate = { version = "^3.15.3", optional = true }
 google-cloud-discoveryengine = { version = "^0.11.11", optional = true }
 google-cloud-vision = { version = "^3.7.2", optional = true }
 beautifulsoup4 = { version = "^4.12.3", optional = true }
+pandas = { version = ">= 1.0.0", optional = true }
+google-cloud-bigquery-storage = { version = ">=2.6.0,<3",  optional = true }
+pyarrow = { version = ">= 6.0.1", optional = true }
+db-dtypes = { version = "^1.2.0", optional = true }
 
 [tool.poetry.extras]
 bigquery = ["google-cloud-bigquery"]
@@ -50,6 +54,7 @@ translate = ["google-cloud-translate"]
 vertexaisearch = ["google-cloud-discoveryengine"]
 vision = ["google-cloud-vision"]
 gmail = ["google-auth-httplib2", "google-auth-oauthlib", "beautifulsoup4"]
+featurestore = ["google-cloud-bigquery-storage", "pandas", "pyarrow","db-dtypes"]
 
 [tool.poetry.group.test]
 optional = true
