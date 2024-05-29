@@ -23,8 +23,9 @@ from vertexai.resources.preview.feature_store import (  # type: ignore[import-un
     utils,
 )
 
-from langchain_google_vertexai.vectorstores.feature_store._base import \
-    BaseBigQueryVectorStore
+from langchain_google_community.feature_store._base import BaseBigQueryVectorStore
+
+
 
 
 _vector_table_lock = Lock()  # process-wide BigQueryVectorSearch table lock
@@ -50,7 +51,7 @@ class BigQueryVectorStore(BaseBigQueryVectorStore):
         self._last_index_check = datetime.min
         logger.info(
             "BigQueryVectorStore initialized with BigQuery VectorSearch. \n"
-            "Optional online serving available via .to_vertex_fs_vector_store() method."
+            "Optional online serving available via .get_vertex_fs_vector_store() method."
         )
 
     def sync(self):
@@ -334,11 +335,11 @@ class BigQueryVectorStore(BaseBigQueryVectorStore):
         vs_obj.add_texts(texts, metadatas)
         return vs_obj
 
-    def to_vertex_fs_vector_store(
+    def get_vertex_fs_vector_store(
             self,
             **kwargs
     ) -> BaseBigQueryVectorStore:
-        from langchain_google_vertexai.vectorstores.feature_store.featurestore import \
+        from langchain_google_community.feature_store.featurestore import \
             VertexFSVectorStore
 
         base_params = self.dict(include=BaseBigQueryVectorStore.__fields__.keys())

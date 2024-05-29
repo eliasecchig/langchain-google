@@ -4,7 +4,6 @@ EXPECTED_ALL = [
     "ChatVertexAI",
     "create_structured_runnable",
     "DataStoreDocumentStorage",
-    "FeatureStore",
     "FunctionCallingConfig",
     "FunctionDeclaration",
     "GCSDocumentStorage",

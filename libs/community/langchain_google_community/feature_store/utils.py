@@ -1,6 +1,4 @@
-from typing import Any, Dict, Optional, Union
-
-from pydantic import BaseModel
+from typing import Any, Dict
 
 
 def validate_column_in_bq_schema(

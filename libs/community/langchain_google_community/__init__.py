@@ -30,8 +30,14 @@ from langchain_google_community.vertex_check_grounding import (
 from langchain_google_community.vertex_rank import VertexAIRank
 from langchain_google_community.vision import CloudVisionLoader, CloudVisionParser
 
+from langchain_google_community.feature_store.bigquery import \
+    BigQueryVectorStore
+from langchain_google_community.feature_store.featurestore import \
+    VertexFSVectorStore
+
 __all__ = [
     "BigQueryLoader",
+    "BigQueryVectorStore",
     "BigQueryVectorSearch",
     "CloudVisionLoader",
     "CloudVisionParser",
@@ -56,4 +62,5 @@ __all__ = [
     "VertexAISearchSummaryTool",
     "VertexAIRank",
     "VertexAICheckGroundingWrapper",
+    "VertexFSVectorStore",
 ]

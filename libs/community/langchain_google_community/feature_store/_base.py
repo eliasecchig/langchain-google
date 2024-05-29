@@ -19,11 +19,7 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStore
 from pydantic import BaseModel, validate_call
-
-from langchain_google_vertexai.vectorstores.feature_store.utils import (
-    validate_column_in_bq_schema,
-)
-
+from langchain_google_community.feature_store.utils import validate_column_in_bq_schema
 from vertexai.resources.preview import (  # type: ignore[import-untyped]
     AlgorithmConfig,
     DistanceMeasureType,
