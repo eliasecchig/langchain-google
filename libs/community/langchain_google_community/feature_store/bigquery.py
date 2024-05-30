@@ -277,7 +277,7 @@ class BigQueryVectorStore(BaseBigQueryVectorStore):
             embeddings_query
             + f"""
         SELECT
-            base.*,
+            base.* EXCEPT(text_embedding),
             query.row_num,
             distance AS score
         FROM VECTOR_SEARCH(
@@ -291,12 +291,31 @@ class BigQueryVectorStore(BaseBigQueryVectorStore):
         ORDER BY row_num, score
         """
         )
+        # full_query = """
+        # with embeddings as (
+        # SELECT text_embedding
+        # from `cloud-llm-preview2.vertex_documentation.mytest99_temp`
+        # order by rand()
+        # )
+
+        # SELECT
+        #             base.* EXCEPT(text_embedding),
+        #             distance AS score
+        #         FROM VECTOR_SEARCH(
+        #             TABLE `cloud-llm-preview2.vertex_documentation.mytest99`,
+        #             'text_embedding',
+        #             (SELECT text_embedding from embeddings),
+        #             distance_type => 'EUCLIDEAN',
+        #             top_k => 5
+        #         )
+        # """
         results = self._bq_client.query(  # type: ignore[union-attr]
             full_query,
             job_config=job_config,
             api_method=bigquery.enums.QueryApiMethod.QUERY,
         )
-        return list(results)
+        results = list(results)
+        return results
 
     @classmethod
     def from_texts(

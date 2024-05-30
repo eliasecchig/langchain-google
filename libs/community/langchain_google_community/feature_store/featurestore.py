@@ -95,6 +95,7 @@ class VertexFSVectorStore(BaseBigQueryVectorStore):
         logger.info(
             "VertexFSVectorStore initialized with Feature Store\n"
             f"online store type: {self.online_store_type}\n"
+            f"feature view name: {self.online_store_name}.{self.view_name}\n"
             "Optional batch serving available via .to_big_query_vector_store() method."
         )
 
